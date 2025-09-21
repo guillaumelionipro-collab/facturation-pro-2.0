@@ -410,3 +410,26 @@ function printCurrent(kind){
   var d=docData();
   var holder=document.createElement('div'); holder.innerHTML=buildPrintable(kind,d); document.body.appendChild(holder); window.print(); holder.remove();
 }
+// === DIAGNOSTIC RAPIDE ===
+(function(){
+  const r = document.getElementById('root');
+  console.log('[DIAG] root existe ?', !!r, r);
+  if(!r){
+    alert('DIAG: #root introuvable. Vérifie index.html (div id="root").');
+    return;
+  }
+  try{
+    // forcer un rendu du tableau de bord
+    Dash();
+    console.log('[DIAG] root.innerHTML length:', r.innerHTML.length);
+    // bordure visible + bannière
+    r.style.outline = '2px dashed red';
+    r.insertAdjacentHTML('afterbegin','<div style="background:#ffe;padding:8px;margin-bottom:8px">Diagnostic : contenu injecté</div>');
+  }catch(e){
+    console.error('DIAG Dash() error:', e);
+    const box = document.createElement('div');
+    box.style = 'background:#fee;color:#900;padding:10px;border:1px solid #f99';
+    box.textContent = 'Erreur dans Dash(): ' + e.message;
+    r.appendChild(box);
+  }
+})();

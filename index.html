@@ -25,5 +25,24 @@
   </main>
 
   <script src="./app.js"></script>
+<script>
+  window.addEventListener('error', function(e){
+    const box = document.createElement('div');
+    box.style = 'position:fixed;left:260px;right:0;bottom:0;background:#fee;border-top:1px solid #f99;padding:10px;font:14px monospace;color:#900;z-index:99999';
+    box.textContent = 'Erreur JS: ' + (e.message||'') + ' @ ' + (e.filename||'') + ':' + (e.lineno||'');
+    document.body.appendChild(box);
+  });
+
+  // Vérifie le chargement JS/CSS
+  (function(){
+    console.log('app.js chargé ✔');
+    const ping = document.createElement('div');
+    ping.className = 'card';
+    ping.innerHTML = '<div class="small">Diagnostic : JS chargé, DOM OK.</div>';
+    document.getElementById('root')?.appendChild(ping);
+    setTimeout(()=> ping.remove(), 1500);
+  })();
+</script>
+
 </body>
 </html>

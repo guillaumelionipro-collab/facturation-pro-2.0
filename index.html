@@ -1,91 +1,29 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Facturation (starter)</title>
-<style>
-  :root{--b:#0b3b74;--b2:#165da6}
-  *{box-sizing:border-box} body{margin:0;font-family:system-ui,Segoe UI,Arial}
-  nav{width:240px;min-height:100vh;background:var(--b);color:#fff;position:fixed;top:0;left:0;padding:16px}
-  nav a{display:block;color:#fff;text-decoration:none;padding:8px 10px;border-radius:8px}
-  nav a:hover{background:var(--b2)}
-  main{margin-left:240px;padding:16px}
-  .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px}
-  body{background:#f5f7fb}
-  button{background:var(--b);color:#fff;border:0;border-radius:8px;padding:8px 12px;cursor:pointer}
-  input{padding:8px;border:1px solid #cfd6e4;border-radius:8px}
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Facturation v1</title>
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-<nav>
-  <h3>📂 Menu</h3>
-  <a href="#/dash" onclick="route('dash')">📊 Tableau de bord</a>
-  <a href="#/clients" onclick="route('clients')">👥 Clients</a>
-  <a href="#/test" onclick="route('test')">🧪 Test</a>
-</nav>
+  <nav class="no-print">
+    <h3>📂 Menu</h3>
+    <a href="#/dash">📊 Tableau de bord</a>
+    <a href="#/clients">👥 Clients</a>
+    <a href="#/articles">📦 Articles</a>
+    <a href="#/devis">📝 Devis</a>
+    <a href="#/factures">📑 Factures</a>
+    <a href="#/paiements">💳 Paiements</a>
+    <a href="#/outils">🧰 Outils</a>
+    <a href="#/societe">🏢 Société</a>
+  </nav>
 
-<main>
-  <h1 id="title">📊 Tableau de bord</h1>
-  <div id="root"></div>
-</main>
+  <main>
+    <header class="no-print"><h1 id="title">📊 Tableau de bord</h1></header>
+    <div id="root" class="container"></div>
+  </main>
 
-<script>
-  // utilitaires minimes
-  var $ = function(s){return document.querySelector(s)}
-  function setTitle(t){$('#title').textContent = t}
-  function route(name){
-    history.replaceState({},'', '#/'+name);
-    render(name);
-  }
-  function render(name){
-    // routes
-    if(name==='clients'){
-      setTitle('👥 Clients'); 
-      $('#root').innerHTML =
-        '<div class="card"><h3>Nouveau client</h3>'+
-        '<input id="c_nom" placeholder="Nom"> '+
-        '<button onclick="saveClient()">Enregistrer</button></div>'+
-        '<div class="card"><h3>Liste</h3><ul id="list"></ul></div>';
-      drawClients();
-      return;
-    }
-    if(name==='test'){
-      setTitle('🧪 Test');
-      var ok = (typeof localStorage!=='undefined');
-      $('#root').innerHTML =
-        '<div class="card"><h3>Vérifications</h3>'+
-        '<p>DOM OK ✅</p>'+
-        '<p>localStorage : '+(ok?'OK ✅':'❌')+'</p>'+
-        '<p>Si tu vois cette page, le routage fonctionne.</p></div>';
-      return;
-    }
-    // défaut = dashboard
-    setTitle('📊 Tableau de bord');
-    $('#root').innerHTML =
-      '<div class="card"><h3>Bienvenue</h3>'+
-      '<p>Tout est bon 🎉. Va sur <b>Clients</b> pour tester un formulaire.</p></div>';
-  }
-  // data très simple
-  function clients(){ try{return JSON.parse(localStorage.getItem('clients_simple')||'[]')}catch(e){return[]} }
-  function saveClients(a){ localStorage.setItem('clients_simple', JSON.stringify(a)) }
-  function saveClient(){
-    var nom = ($('#c_nom')||{}).value||'';
-    if(!nom.trim()){ alert('Nom requis'); return; }
-    var a = clients(); a.push({nom:nom}); saveClients(a); drawClients();
-    ($('#c_nom')||{}).value='';
-  }
-  function drawClients(){
-    var ul = $('#list'); if(!ul) return;
-    var a = clients();
-    ul.innerHTML = a.map(function(x,i){ return '<li>'+x.nom+'</li>' }).join('') || '<li>Aucun</li>';
-  }
-
-  // 1ère route au chargement
-  window.addEventListener('DOMContentLoaded', function () {
-    var hash = location.hash.replace('#/','') || 'dash';
-    render(hash);
-  });
-</script>
+  <script src="./app.js"></script>
 </body>
 </html>

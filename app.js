@@ -4,33 +4,55 @@ var LS_CLIENTS='p1_clients',LS_ART='p1_articles',LS_DEVIS='p1_devis',LS_FACT='p1
 /* ===== HELPERS ===== */
 var $=function(s){return document.querySelector(s)}
 var $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))}
-function load(k){try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return[]}}
-function save(k,v){localStorage.setItem(k,JSON.stringify(v))}
+function load(k){try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){console.error('load fail',k,e);return[]}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){console.error('save fail',k,e)}}
 function today(){return new Date().toISOString().slice(0,10)}
 function nf(n){return (Number(n)||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function sum(a){return a.reduce(function(s,x){return s+(+x||0)},0)}
 function esc(s){s=(s==null)?'':String(s);return s.replace(/[&<>\"']/g,function(m){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'})[m]})}
 function autoNumber(prefix){var y=new Date().getFullYear();var key='auto_'+prefix+'_'+y;var n=Number(localStorage.getItem(key)||0)+1;localStorage.setItem(key,n);return prefix+'-'+y+'-'+String(n).padStart(3,'0')}
-function setTitle(t){$('#title').textContent=t}
+function setTitle(t){var h=$('#title'); if(h) h.textContent=t}
 function csvEscape(s){s=(s==null)?'':String(s); if(/[";,\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"'; return s;}
 function company(){var d={nom:'Ma Société',adresse:'12 rue Exemple\\n75000 Paris',tel:'',email:'',siret:'',tva:'',logo:''};try{var x=JSON.parse(localStorage.getItem(LS_COMP)||'{}'); for(var k in x){d[k]=x[k]}}catch(e){} return d}
-
-/* ===== ROUTER ===== */
-function render(){
-  var page=(location.hash.replace('#/','')||'dash');
-  var titles={dash:'📊 Tableau de bord',clients:'👥 Clients',articles:'📦 Articles / Stock',devis:'📝 Devis',factures:'📑 Factures',paiements:'💳 Paiements',outils:'🧰 Outils',societe:'🏢 Société'};
-  setTitle(titles[page]||'');
-  (page==='clients')?Clients():
-  (page==='articles')?Articles():
-  (page==='devis')?Devis():
-  (page==='factures')?Factures():
-  (page==='paiements')?Paiements():
-  (page==='outils')?Outils():
-  (page==='societe')?Societe():
-  Dash();
+function showErrorOverlay(msg,where){
+  try{
+    var box=document.createElement('div');
+    box.style='position:fixed;left:260px;right:0;bottom:0;background:#fee;border-top:1px solid #f99;padding:10px;font:14px monospace;color:#900;z-index:99999';
+    box.textContent='Erreur: '+msg+(where?(' @ '+where):'');
+    document.body.appendChild(box);
+    setTimeout(function(){try{box.remove()}catch(e){}},10000);
+  }catch(e){}
 }
-window.addEventListener('hashchange',render);
-window.addEventListener('DOMContentLoaded',render);
+
+/* ===== ROUTER (fail-safe) ===== */
+function routeName(){
+  var r=(location.hash||'').replace(/^#\//,'').trim();
+  if(!r) return 'dash';
+  var ok={'dash':1,'clients':1,'articles':1,'devis':1,'factures':1,'paiements':1,'outils':1,'societe':1};
+  return ok[r]?r:'dash';
+}
+function render(){
+  try{
+    var page=routeName();
+    var titles={dash:'📊 Tableau de bord',clients:'👥 Clients',articles:'📦 Articles / Stock',devis:'📝 Devis',factures:'📑 Factures',paiements:'💳 Paiements',outils:'🧰 Outils',societe:'🏢 Société'};
+    setTitle(titles[page]||'');
+    if(page==='clients') return Clients();
+    if(page==='articles') return Articles();
+    if(page==='devis') return Devis();
+    if(page==='factures') return Factures();
+    if(page==='paiements') return Paiements();
+    if(page==='outils') return Outils();
+    if(page==='societe') return Societe();
+    return Dash();
+  }catch(e){
+    console.error(e);
+    showErrorOverlay(e.message, 'render()');
+  }
+}
+window.addEventListener('hashchange', function(){ render() });
+window.addEventListener('DOMContentLoaded', function(){ render() });
+// Fallback : forcer un rendu même si DOMContentLoaded n’est pas déclenché (rare, mais on blinde)
+setTimeout(function(){ if(!$('#root') || !$('#root').children.length){ render(); } }, 50);
 
 /* ===== DASH ===== */
 function Dash(){
@@ -39,11 +61,12 @@ function Dash(){
   var enc=sum(p.filter(function(x){return x.statut==='Reçu'}).map(function(x){return +x.montant||0}));
   var imp=Math.max(0,ca-enc);
   var fm=f.filter(function(x){return (x.date||'').slice(0,7)===ym});
-  $('#root').innerHTML=
+  var root=$('#root'); if(!root){showErrorOverlay('root introuvable','Dash');return}
+  root.innerHTML=
     '<div class="grid">'+
       '<div class="card"><h3>CA TTC cumulé</h3><div class="kpi">'+nf(ca)+' €</div></div>'+
       '<div class="card"><h3>Encaissements</h3><div class="kpi">'+nf(enc)+' €</div></div>'+
-      '<div class="card"><h3>Impayés estimés</h3><div class="kpi" style="color:var(--danger)">'+nf(imp)+' €</div></div>'+
+      '<div class="card"><h3>Impayés estimés</h3><div class="kpi" style="color:#b00020">'+nf(imp)+' €</div></div>'+
       '<div class="card"><h3>Factures ce mois ('+ym+')</h3><div class="kpi">'+fm.length+'</div></div>'+
     '</div>'+
     '<div class="card"><div class="muted">Pack 1 : tarifs spéciaux client, stock avec alertes mini, auto-numéro, devis→facture, paiements & impression PDF.</div></div>';
@@ -52,7 +75,8 @@ function Dash(){
 /* ===== CLIENTS (tarifs spéciaux) ===== */
 function Clients(){
   var c=load(LS_CLIENTS);
-  $('#root').innerHTML=
+  var root=$('#root'); if(!root){showErrorOverlay('root introuvable','Clients');return}
+  root.innerHTML=
   '<div class="card"><h3>Fiche client</h3>'+
     '<div class="row">'+
       '<div><label>Nom / Raison sociale</label><input id="c_nom"></div>'+
@@ -100,7 +124,8 @@ function delClient(i){var a=load(LS_CLIENTS); a.splice(i,1); save(LS_CLIENTS,a);
 /* ===== ARTICLES / STOCK ===== */
 function Articles(){
   var a=load(LS_ART);
-  $('#root').innerHTML=
+  var root=$('#root'); if(!root){showErrorOverlay('root introuvable','Articles');return}
+  root.innerHTML=
   '<div class="card"><h3>Nouvel article</h3>'+
     '<div class="row">'+
       '<div><label>Réf</label><input id="a_ref"></div>'+
@@ -142,14 +167,13 @@ function lineHTML(idx,L){
     '<td class="right"><button class="ghost" onclick="delLine(this)">×</button></td>'+
   '</tr>';
 }
-function addLine(){var b=$('#doc_body'); b.insertAdjacentHTML('beforeend',lineHTML(b.children.length,{qte:1,pu:0,tva:20})); recalc()}
+function addLine(){var b=$('#doc_body'); if(!b){showErrorOverlay('doc_body manquant','addLine');return} b.insertAdjacentHTML('beforeend',lineHTML(b.children.length,{qte:1,pu:0,tva:20})); recalc()}
 function delLine(btn){btn.closest('tr').remove(); recalc()}
 function onRef(el){
   var ref=el.value.trim(); if(!ref)return;
   var st=load(LS_ART); var it=st.find(function(x){return x.ref===ref});
   var tr=el.closest('tr'), i=tr.querySelectorAll('input');
   if(it){ if(!i[1].value) i[1].value=it.desc||''; i[3].value=it.pu||0; i[4].value=it.tva||20;}
-  // tarifs spéciaux client
   var cName = ($('#doc_client')||{}).value||'';
   if(cName){
     var c = load(LS_CLIENTS).find(function(x){return x.nom===cName});
@@ -164,27 +188,29 @@ function recalc(){
   var rows=$$('#doc_body tr'), ht=0,tva=0;
   rows.forEach(function(tr){
     var i=tr.querySelectorAll('input'); var q=+i[2].value||0, pu=+i[3].value||0, t=+i[4].value||0;
-    var lht=q*pu; tr.querySelector('.totalL').textContent=nf(lht); ht+=lht; tva+=lht*(t/100);
+    var lht=q*pu; var cell=tr.querySelector('.totalL'); if(cell) cell.textContent=nf(lht); ht+=lht; tva+=lht*(t/100);
   });
-  $('#d_ht').textContent=nf(ht); $('#d_tva').textContent=nf(tva); $('#d_ttc').textContent=nf(ht+tva);
+  var el;
+  if((el=$('#d_ht'))) el.textContent=nf(ht);
+  if((el=$('#d_tva'))) el.textContent=nf(tva);
+  if((el=$('#d_ttc'))) el.textContent=nf(ht+tva);
 }
 function docData(extra){ if(!extra) extra={};
   var rows=$$('#doc_body tr').map(function(tr){
     var i=tr.querySelectorAll('input'); return {ref:i[0].value,desc:i[1].value,qte:+i[2].value||0,pu:+i[3].value||0,tva:+i[4].value||0};
   });
+  function numFrom(id){var t=$('#'+id); if(!t) return 0; return +t.textContent.replace(/\s/g,'').replace(',','.')||0}
   return Object.assign({
-    num:$('#doc_num').value, date:$('#doc_date').value, client:$('#doc_client').value,
-    lignes:rows,
-    totalHT:+$('#d_ht').textContent.replace(/\s/g,'').replace(',','.')||0,
-    totalTVA:+$('#d_tva').textContent.replace(/\s/g,'').replace(',','.')||0,
-    totalTTC:+$('#d_ttc').textContent.replace(/\s/g,'').replace(',','.')||0
+    num:($('#doc_num')||{}).value, date:($('#doc_date')||{}).value, client:($('#doc_client')||{}).value,
+    lignes:rows, totalHT:numFrom('d_ht'), totalTVA:numFrom('d_tva'), totalTTC:numFrom('d_ttc')
   }, extra);
 }
 
 /* ===== DEVIS ===== */
 function Devis(){
   var devis=load(LS_DEVIS), clients=load(LS_CLIENTS);
-  $('#root').innerHTML=
+  var root=$('#root'); if(!root){showErrorOverlay('root introuvable','Devis');return}
+  root.innerHTML=
   '<div class="card"><h3>Nouveau devis</h3>'+
     '<div class="row">'+
       '<div><label>N°</label><input id="doc_num" placeholder="DEV-'+new Date().getFullYear()+'-001"></div>'+
@@ -216,7 +242,6 @@ function delDv(i){var a=load(LS_DEVIS); a.splice(i,1); save(LS_DEVIS,a); Devis()
 function dvToFact(i){
   var a=load(LS_DEVIS), d=a[i]; if(!d)return;
   var f=load(LS_FACT); var num=autoNumber('FACT');
-  // décrément stock
   var stock=load(LS_ART);
   (d.lignes||[]).forEach(function(L){
     var it=stock.find(function(x){return x.ref===L.ref}); if(it){ it.qty=Math.max(0,(+it.qty||0)-(+L.qte||0)); }
@@ -229,7 +254,8 @@ function dvToFact(i){
 /* ===== FACTURES ===== */
 function Factures(){
   var f=load(LS_FACT), clients=load(LS_CLIENTS);
-  $('#root').innerHTML=
+  var root=$('#root'); if(!root){showErrorOverlay('root introuvable','Factures');return}
+  root.innerHTML=
   '<div class="card"><h3>Nouvelle facture</h3>'+
     '<div class="row">'+
       '<div><label>N°</label><input id="doc_num" placeholder="auto (FACT-'+new Date().getFullYear()+'-###)"></div>'+
@@ -260,7 +286,6 @@ function Factures(){
 }
 function saveFact(){
   var d=docData(); if(!d.num) d.num=autoNumber('FACT'); d.statut='Envoyée'; d.paid=0;
-  // décrément stock
   var stock=load(LS_ART);
   (d.lignes||[]).forEach(function(L){
     var it=stock.find(function(x){return x.ref===L.ref}); if(it){ it.qty=Math.max(0,(+it.qty||0)-(+L.qte||0)); }
@@ -273,7 +298,8 @@ function delFact(i){var a=load(LS_FACT); a.splice(i,1); save(LS_FACT,a); Facture
 /* ===== PAIEMENTS ===== */
 function Paiements(){
   var p=load(LS_PAY).sort(function(a,b){return b.date.localeCompare(a.date)}), f=load(LS_FACT);
-  $('#root').innerHTML=
+  var root=$('#root'); if(!root){showErrorOverlay('root introuvable','Paiements');return}
+  root.innerHTML=
   '<div class="card"><h3>Nouveau paiement</h3>'+
     '<div class="row">'+
       '<div><label>Facture N°</label><input list="fa" id="p_fact"><datalist id="fa">'+
@@ -310,7 +336,8 @@ function delPay(i){
 
 /* ===== OUTILS ===== */
 function Outils(){
-  $('#root').innerHTML=
+  var root=$('#root'); if(!root){showErrorOverlay('root introuvable','Outils');return}
+  root.innerHTML=
   '<div class="card"><h3>Exports</h3>'+
     '<div class="toolbar">'+
       '<button class="ghost" onclick="csvExport(load(LS_CLIENTS),\'clients.csv\')">Export Clients</button>'+
@@ -341,7 +368,8 @@ function csvExport(rows,name){
 /* ===== SOCIETE ===== */
 function Societe(){
   var s=company();
-  $('#root').innerHTML=
+  var root=$('#root'); if(!root){showErrorOverlay('root introuvable','Societe');return}
+  root.innerHTML=
   '<div class="card"><h3>Paramètres société</h3>'+
     '<div class="row">'+
       '<div><label>Nom</label><input id="sn" value="'+esc(s.nom)+'"></div>'+
